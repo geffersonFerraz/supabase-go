@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,10 +15,6 @@ import (
 
 	"github.com/google/go-querystring/query"
 )
-
-type authError struct {
-	Message string `json:"message"`
-}
 
 type Auth struct {
 	client *Client
@@ -46,19 +41,19 @@ type User struct {
 }
 
 // SignUp registers the user's email and password to the database.
-func (a *Auth) SignUp(ctx context.Context, credentials UserCredentials) (*User, error) {
+func (a *Auth) SignUp(ctx context.Context, credentials UserCredentials) (*User, *ErrorResponse) {
 	reqBody, _ := json.Marshal(credentials)
 	reqURL := fmt.Sprintf("%s/%s/signup", a.client.BaseURL, AuthEndpoint)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewBuffer(reqBody))
 	if err != nil {
-		return nil, err
+		return nil, GenericError(err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
 	res, err := a.client.sendRequest(req)
 	if err != nil {
-		return nil, err
+		return nil, GenericError(err)
 	}
 
 	user := User{}
@@ -66,11 +61,11 @@ func (a *Auth) SignUp(ctx context.Context, credentials UserCredentials) (*User, 
 		defer res.Body.Close()
 
 		if res.StatusCode != http.StatusOK {
-			errRes := ErrorResponse{}
+			errRes := &ErrorResponse{}
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
-				return nil, err
+				return nil, GenericError(err)
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
+			return nil, errRes
 		}
 
 		ParseBody(res, &user)
@@ -89,35 +84,31 @@ type AuthenticatedDetails struct {
 	ProviderRefreshToken string `json:"provider_refresh_token"`
 }
 
-type exchangeError struct {
-	Message string `json:"msg"`
-}
-
 // SignIn enters the user credentials and returns the current user if succeeded.
-func (a *Auth) SignIn(ctx context.Context, credentials UserCredentials) (*AuthenticatedDetails, error) {
+func (a *Auth) SignIn(ctx context.Context, credentials UserCredentials) (*AuthenticatedDetails, *ErrorResponse) {
 	reqBody, _ := json.Marshal(credentials)
 	reqURL := fmt.Sprintf("%s/%s/token?grant_type=password", a.client.BaseURL, AuthEndpoint)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewBuffer(reqBody))
 	if err != nil {
-		return nil, err
+		return nil, GenericError(err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
 	res, err := a.client.sendRequest(req)
 	if err != nil {
-		return nil, err
+		return nil, GenericError(err)
 	}
 	authDetails := AuthenticatedDetails{}
 	if res.Body != nil {
 		defer res.Body.Close()
 
 		if res.StatusCode != http.StatusOK {
-			errRes := ErrorResponse{}
+			errRes := &ErrorResponse{}
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
-				return nil, err
+				return nil, GenericError(err)
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
+			return nil, errRes
 		}
 
 		ParseBody(res, &authDetails)
@@ -127,12 +118,12 @@ func (a *Auth) SignIn(ctx context.Context, credentials UserCredentials) (*Authen
 }
 
 // SignIn enters the user credentials and returns the current user if succeeded.
-func (a *Auth) RefreshUser(ctx context.Context, userToken string, refreshToken string) (*AuthenticatedDetails, error) {
+func (a *Auth) RefreshUser(ctx context.Context, userToken string, refreshToken string) (*AuthenticatedDetails, *ErrorResponse) {
 	reqBody, _ := json.Marshal(map[string]string{"refresh_token": refreshToken})
 	reqURL := fmt.Sprintf("%s/%s/token?grant_type=refresh_token", a.client.BaseURL, AuthEndpoint)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewBuffer(reqBody))
 	if err != nil {
-		return nil, err
+		return nil, GenericError(err)
 	}
 
 	injectAuthorizationHeader(req, userToken)
@@ -145,11 +136,11 @@ func (a *Auth) RefreshUser(ctx context.Context, userToken string, refreshToken s
 		defer res.Body.Close()
 
 		if res.StatusCode != http.StatusOK {
-			errRes := ErrorResponse{}
+			errRes := &ErrorResponse{}
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
-				return nil, err
+				return nil, GenericError(err)
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
+			return nil, errRes
 		}
 
 		ParseBody(res, &authDetails)
@@ -164,12 +155,12 @@ type ExchangeCodeOpts struct {
 }
 
 // ExchangeCode takes an auth code and PCKE verifier and returns the current user if succeeded.
-func (a *Auth) ExchangeCode(ctx context.Context, opts ExchangeCodeOpts) (*AuthenticatedDetails, error) {
+func (a *Auth) ExchangeCode(ctx context.Context, opts ExchangeCodeOpts) (*AuthenticatedDetails, *ErrorResponse) {
 	reqBody, _ := json.Marshal(opts)
 	reqURL := fmt.Sprintf("%s/%s/token?grant_type=pkce", a.client.BaseURL, AuthEndpoint)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewBuffer(reqBody))
 	if err != nil {
-		return nil, err
+		return nil, GenericError(err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -181,11 +172,11 @@ func (a *Auth) ExchangeCode(ctx context.Context, opts ExchangeCodeOpts) (*Authen
 		defer res.Body.Close()
 
 		if res.StatusCode != http.StatusOK {
-			errRes := ErrorResponse{}
+			errRes := &ErrorResponse{}
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
-				return nil, err
+				return nil, GenericError(err)
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
+			return nil, errRes
 		}
 
 		ParseBody(res, &authDetails)
@@ -195,21 +186,21 @@ func (a *Auth) ExchangeCode(ctx context.Context, opts ExchangeCodeOpts) (*Authen
 }
 
 // SendMagicLink sends a link to a specific e-mail address for passwordless auth.
-func (a *Auth) SendMagicLink(ctx context.Context, email string) error {
+func (a *Auth) SendMagicLink(ctx context.Context, email string) *ErrorResponse {
 	reqBody, _ := json.Marshal(map[string]string{"email": email})
 	reqURL := fmt.Sprintf("%s/%s/magiclink", a.client.BaseURL, AuthEndpoint)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewBuffer(reqBody))
 	if err != nil {
-		return err
+		return GenericError(err)
 	}
 
 	res, err := a.client.sendRequest(req)
 	if res.StatusCode != http.StatusOK {
-		errRes := ErrorResponse{}
+		errRes := &ErrorResponse{}
 		if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
-			return err
+			return GenericError(err)
 		}
-		return errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
+		return errRes
 	}
 	return nil
 }
@@ -235,10 +226,10 @@ type ProviderSignInDetails struct {
 }
 
 // SignInWithProvider returns a URL for signing in via OAuth
-func (a *Auth) SignInWithProvider(opts ProviderSignInOptions) (*ProviderSignInDetails, error) {
+func (a *Auth) SignInWithProvider(opts ProviderSignInOptions) (*ProviderSignInDetails, *ErrorResponse) {
 	params, err := query.Values(opts)
 	if err != nil {
-		return nil, err
+		return nil, GenericError(err)
 	}
 
 	params.Set("scopes", strings.Join(opts.Scopes, " "))
@@ -246,7 +237,7 @@ func (a *Auth) SignInWithProvider(opts ProviderSignInOptions) (*ProviderSignInDe
 	if opts.FlowType == PKCE {
 		p, err := generatePKCEParams()
 		if err != nil {
-			return nil, err
+			return nil, GenericError(err)
 		}
 
 		params.Add("code_challenge", p.Challenge)
@@ -271,11 +262,11 @@ func (a *Auth) SignInWithProvider(opts ProviderSignInOptions) (*ProviderSignInDe
 }
 
 // User retrieves the user information based on the given token
-func (a *Auth) User(ctx context.Context, userToken string) (*User, error) {
+func (a *Auth) User(ctx context.Context, userToken string) (*User, *ErrorResponse) {
 	reqURL := fmt.Sprintf("%s/%s/user", a.client.BaseURL, AuthEndpoint)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
-		return nil, err
+		return nil, GenericError(err)
 	}
 
 	injectAuthorizationHeader(req, userToken)
@@ -286,11 +277,11 @@ func (a *Auth) User(ctx context.Context, userToken string) (*User, error) {
 		defer res.Body.Close()
 
 		if res.StatusCode != http.StatusOK {
-			errRes := ErrorResponse{}
+			errRes := &ErrorResponse{}
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
-				return nil, err
+				return nil, GenericError(err)
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
+			return nil, errRes
 		}
 
 		ParseBody(res, &user)
@@ -300,12 +291,12 @@ func (a *Auth) User(ctx context.Context, userToken string) (*User, error) {
 }
 
 // UpdateUser updates the user information
-func (a *Auth) UpdateUser(ctx context.Context, userToken string, updateData map[string]interface{}) (*User, error) {
+func (a *Auth) UpdateUser(ctx context.Context, userToken string, updateData map[string]interface{}) (*User, *ErrorResponse) {
 	reqBody, _ := json.Marshal(updateData)
 	reqURL := fmt.Sprintf("%s/%s/user", a.client.BaseURL, AuthEndpoint)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, reqURL, bytes.NewBuffer(reqBody))
 	if err != nil {
-		return nil, err
+		return nil, GenericError(err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -318,11 +309,11 @@ func (a *Auth) UpdateUser(ctx context.Context, userToken string, updateData map[
 		defer res.Body.Close()
 
 		if res.StatusCode != http.StatusOK {
-			errRes := ErrorResponse{}
+			errRes := &ErrorResponse{}
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
-				return nil, err
+				return nil, GenericError(err)
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
+			return nil, errRes
 		}
 
 		ParseBody(res, &user)
@@ -332,47 +323,47 @@ func (a *Auth) UpdateUser(ctx context.Context, userToken string, updateData map[
 }
 
 // ResetPasswordForEmail sends a password recovery link to the given e-mail address.
-func (a *Auth) ResetPasswordForEmail(ctx context.Context, email string) error {
+func (a *Auth) ResetPasswordForEmail(ctx context.Context, email string) *ErrorResponse {
 	reqBody, _ := json.Marshal(map[string]string{"email": email})
 	reqURL := fmt.Sprintf("%s/%s/recover", a.client.BaseURL, AuthEndpoint)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewBuffer(reqBody))
 	if err != nil {
-		return err
+		return GenericError(err)
 	}
 	res, err := a.client.sendRequest(req)
 	if res.StatusCode != http.StatusOK {
-		errRes := ErrorResponse{}
+		errRes := &ErrorResponse{}
 		if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
-			return err
+			return GenericError(err)
 		}
-		return errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
+		return errRes
 	}
 	return nil
 }
 
 // SignOut revokes the users token and session.
-func (a *Auth) SignOut(ctx context.Context, userToken string) error {
+func (a *Auth) SignOut(ctx context.Context, userToken string) *ErrorResponse {
 	reqURL := fmt.Sprintf("%s/%s/logout", a.client.BaseURL, AuthEndpoint)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, nil)
 	if err != nil {
-		return err
+		return GenericError(err)
 	}
 
 	injectAuthorizationHeader(req, userToken)
 	req.Header.Set("Content-Type", "application/json")
 	res, err := a.client.sendRequest(req)
 	if res.StatusCode != http.StatusOK {
-		errRes := ErrorResponse{}
+		errRes := &ErrorResponse{}
 		if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
-			return err
+			return GenericError(err)
 		}
-		return errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
+		return errRes
 	}
 	return nil
 }
 
 // InviteUserByEmailWithOpts sends an invite link to the given email with metadata. Returns a user.
-func (a *Auth) InviteUserByEmailWithData(ctx context.Context, email string, data map[string]interface{}, redirectTo string) (*User, error) {
+func (a *Auth) InviteUserByEmailWithData(ctx context.Context, email string, data map[string]interface{}, redirectTo string) (*User, *ErrorResponse) {
 	params := map[string]interface{}{"email": email}
 	if data != nil {
 		params["data"] = data
@@ -386,7 +377,7 @@ func (a *Auth) InviteUserByEmailWithData(ctx context.Context, email string, data
 	reqURL := fmt.Sprintf("%s/%s/invite", a.client.BaseURL, AuthEndpoint)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewBuffer(reqBody))
 	if err != nil {
-		return nil, err
+		return nil, GenericError(err)
 	}
 
 	injectAuthorizationHeader(req, a.client.apiKey)
@@ -399,11 +390,11 @@ func (a *Auth) InviteUserByEmailWithData(ctx context.Context, email string, data
 		defer res.Body.Close()
 
 		if res.StatusCode != http.StatusOK {
-			errRes := ErrorResponse{}
+			errRes := &ErrorResponse{}
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
-				return nil, err
+				return nil, GenericError(err)
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
+			return nil, errRes
 		}
 
 		ParseBody(res, &user)
@@ -413,7 +404,7 @@ func (a *Auth) InviteUserByEmailWithData(ctx context.Context, email string, data
 }
 
 // InviteUserByEmail sends an invite link to the given email. Returns a user.
-func (a *Auth) InviteUserByEmail(ctx context.Context, email string) (*User, error) {
+func (a *Auth) InviteUserByEmail(ctx context.Context, email string) (*User, *ErrorResponse) {
 	return a.InviteUserByEmailWithData(ctx, email, nil, "")
 }
 
@@ -424,10 +415,10 @@ type PKCEParams struct {
 	Verifier        string
 }
 
-func generatePKCEParams() (*PKCEParams, error) {
+func generatePKCEParams() (*PKCEParams, *ErrorResponse) {
 	data := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, data); err != nil {
-		return nil, err
+		return nil, GenericError(err)
 	}
 
 	// RawURLEncoding since "code challenge can only contain alphanumeric characters, hyphens, periods, underscores and tildes"
