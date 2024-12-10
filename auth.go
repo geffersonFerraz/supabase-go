@@ -70,7 +70,7 @@ func (a *Auth) SignUp(ctx context.Context, credentials UserCredentials) (*User, 
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
 				return nil, err
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
 		}
 
 		ParseBody(res, &user)
@@ -117,7 +117,7 @@ func (a *Auth) SignIn(ctx context.Context, credentials UserCredentials) (*Authen
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
 				return nil, err
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
 		}
 
 		ParseBody(res, &authDetails)
@@ -149,7 +149,7 @@ func (a *Auth) RefreshUser(ctx context.Context, userToken string, refreshToken s
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
 				return nil, err
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
 		}
 
 		ParseBody(res, &authDetails)
@@ -185,7 +185,7 @@ func (a *Auth) ExchangeCode(ctx context.Context, opts ExchangeCodeOpts) (*Authen
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
 				return nil, err
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
 		}
 
 		ParseBody(res, &authDetails)
@@ -209,7 +209,7 @@ func (a *Auth) SendMagicLink(ctx context.Context, email string) error {
 		if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
 			return err
 		}
-		return errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+		return errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
 	}
 	return nil
 }
@@ -290,7 +290,7 @@ func (a *Auth) User(ctx context.Context, userToken string) (*User, error) {
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
 				return nil, err
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
 		}
 
 		ParseBody(res, &user)
@@ -322,7 +322,7 @@ func (a *Auth) UpdateUser(ctx context.Context, userToken string, updateData map[
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
 				return nil, err
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
 		}
 
 		ParseBody(res, &user)
@@ -345,7 +345,7 @@ func (a *Auth) ResetPasswordForEmail(ctx context.Context, email string) error {
 		if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
 			return err
 		}
-		return errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+		return errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
 	}
 	return nil
 }
@@ -366,7 +366,7 @@ func (a *Auth) SignOut(ctx context.Context, userToken string) error {
 		if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
 			return err
 		}
-		return errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+		return errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
 	}
 	return nil
 }
@@ -403,7 +403,7 @@ func (a *Auth) InviteUserByEmailWithData(ctx context.Context, email string, data
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
 				return nil, err
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
 		}
 
 		ParseBody(res, &user)

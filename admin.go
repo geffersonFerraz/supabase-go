@@ -126,7 +126,7 @@ func (a *Admin) GetUser(ctx context.Context, userID string) (*AdminUser, error) 
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
 				return nil, err
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
 		}
 
 		ParseBody(res, &adminUser)
@@ -156,7 +156,7 @@ func (a *Admin) CreateUser(ctx context.Context, params AdminUserParams) (*AdminU
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
 				return nil, err
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
 		}
 
 		ParseBody(res, &adminUser)
@@ -186,7 +186,7 @@ func (a *Admin) UpdateUser(ctx context.Context, userID string, params AdminUserP
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
 				return nil, err
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
 		}
 
 		ParseBody(res, &adminUser)
@@ -216,7 +216,7 @@ func (a *Admin) GenerateLink(ctx context.Context, params GenerateLinkParams) (*G
 			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
 				return nil, err
 			}
-			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.ErrorCode, errRes.Message))
 		}
 
 		ParseBody(res, &generateLinkResponse)
