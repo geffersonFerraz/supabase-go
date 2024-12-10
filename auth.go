@@ -55,12 +55,28 @@ func (a *Auth) SignUp(ctx context.Context, credentials UserCredentials) (*User, 
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	res := User{}
-	if err := a.client.sendRequest(req, &res); err != nil {
+
+	res, err := a.client.sendRequest(req)
+	if err != nil {
 		return nil, err
 	}
 
-	return &res, nil
+	user := User{}
+	if res.Body != nil {
+		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK {
+			errRes := ErrorResponse{}
+			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+				return nil, err
+			}
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+		}
+
+		ParseBody(res, &user)
+	}
+
+	return &user, nil
 }
 
 type AuthenticatedDetails struct {
@@ -71,11 +87,6 @@ type AuthenticatedDetails struct {
 	User                 User   `json:"user"`
 	ProviderToken        string `json:"provider_token"`
 	ProviderRefreshToken string `json:"provider_refresh_token"`
-}
-
-type authenticationError struct {
-	Error            string `json:"error"`
-	ErrorDescription string `json:"error_description"`
 }
 
 type exchangeError struct {
@@ -92,16 +103,27 @@ func (a *Auth) SignIn(ctx context.Context, credentials UserCredentials) (*Authen
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	res := AuthenticatedDetails{}
-	errRes := authenticationError{}
-	hasCustomError, err := a.client.sendCustomRequest(req, &res, &errRes)
+
+	res, err := a.client.sendRequest(req)
 	if err != nil {
 		return nil, err
-	} else if hasCustomError {
-		return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.ErrorDescription))
+	}
+	authDetails := AuthenticatedDetails{}
+	if res.Body != nil {
+		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK {
+			errRes := ErrorResponse{}
+			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+				return nil, err
+			}
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+		}
+
+		ParseBody(res, &authDetails)
 	}
 
-	return &res, nil
+	return &authDetails, nil
 }
 
 // SignIn enters the user credentials and returns the current user if succeeded.
@@ -115,16 +137,25 @@ func (a *Auth) RefreshUser(ctx context.Context, userToken string, refreshToken s
 
 	injectAuthorizationHeader(req, userToken)
 	req.Header.Set("Content-Type", "application/json")
-	res := AuthenticatedDetails{}
-	errRes := authenticationError{}
-	hasCustomError, err := a.client.sendCustomRequest(req, &res, &errRes)
-	if err != nil {
-		return nil, err
-	} else if hasCustomError {
-		return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.ErrorDescription))
+
+	res, err := a.client.sendRequest(req)
+
+	authDetails := AuthenticatedDetails{}
+	if res.Body != nil {
+		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK {
+			errRes := ErrorResponse{}
+			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+				return nil, err
+			}
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+		}
+
+		ParseBody(res, &authDetails)
 	}
 
-	return &res, nil
+	return &authDetails, nil
 }
 
 type ExchangeCodeOpts struct {
@@ -142,16 +173,25 @@ func (a *Auth) ExchangeCode(ctx context.Context, opts ExchangeCodeOpts) (*Authen
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	res := AuthenticatedDetails{}
-	errRes := exchangeError{}
-	hasCustomError, err := a.client.sendCustomRequest(req, &res, &errRes)
-	if err != nil {
-		return nil, err
-	} else if hasCustomError {
-		return nil, errors.New(errRes.Message)
+
+	res, err := a.client.sendRequest(req)
+
+	authDetails := AuthenticatedDetails{}
+	if res.Body != nil {
+		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK {
+			errRes := ErrorResponse{}
+			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+				return nil, err
+			}
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+		}
+
+		ParseBody(res, &authDetails)
 	}
 
-	return &res, err
+	return &authDetails, nil
 }
 
 // SendMagicLink sends a link to a specific e-mail address for passwordless auth.
@@ -163,14 +203,14 @@ func (a *Auth) SendMagicLink(ctx context.Context, email string) error {
 		return err
 	}
 
-	errRes := authError{}
-	hasCustomError, err := a.client.sendCustomRequest(req, nil, &errRes)
-	if err != nil {
-		return err
-	} else if hasCustomError {
-		return errors.New(fmt.Sprintf("%s", errRes.Message))
+	res, err := a.client.sendRequest(req)
+	if res.StatusCode != http.StatusOK {
+		errRes := ErrorResponse{}
+		if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+			return err
+		}
+		return errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
 	}
-
 	return nil
 }
 
@@ -239,16 +279,24 @@ func (a *Auth) User(ctx context.Context, userToken string) (*User, error) {
 	}
 
 	injectAuthorizationHeader(req, userToken)
-	res := User{}
-	errRes := authError{}
-	hasCustomError, err := a.client.sendCustomRequest(req, &res, &errRes)
-	if err != nil {
-		return nil, err
-	} else if hasCustomError {
-		return nil, errors.New(fmt.Sprintf("%s", errRes.Message))
+	res, err := a.client.sendRequest(req)
+
+	user := User{}
+	if res.Body != nil {
+		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK {
+			errRes := ErrorResponse{}
+			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+				return nil, err
+			}
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+		}
+
+		ParseBody(res, &user)
 	}
 
-	return &res, nil
+	return &user, nil
 }
 
 // UpdateUser updates the user information
@@ -263,16 +311,24 @@ func (a *Auth) UpdateUser(ctx context.Context, userToken string, updateData map[
 	req.Header.Set("Content-Type", "application/json")
 	injectAuthorizationHeader(req, userToken)
 
-	res := User{}
-	errRes := authError{}
-	hasCustomError, err := a.client.sendCustomRequest(req, &res, &errRes)
-	if err != nil {
-		return nil, err
-	} else if hasCustomError {
-		return nil, errors.New(fmt.Sprintf("%s", errRes.Message))
+	res, err := a.client.sendRequest(req)
+
+	user := User{}
+	if res.Body != nil {
+		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK {
+			errRes := ErrorResponse{}
+			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+				return nil, err
+			}
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+		}
+
+		ParseBody(res, &user)
 	}
 
-	return &res, nil
+	return &user, nil
 }
 
 // ResetPasswordForEmail sends a password recovery link to the given e-mail address.
@@ -283,11 +339,14 @@ func (a *Auth) ResetPasswordForEmail(ctx context.Context, email string) error {
 	if err != nil {
 		return err
 	}
-
-	if err = a.client.sendRequest(req, nil); err != nil {
-		return err
+	res, err := a.client.sendRequest(req)
+	if res.StatusCode != http.StatusOK {
+		errRes := ErrorResponse{}
+		if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+			return err
+		}
+		return errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
 	}
-
 	return nil
 }
 
@@ -301,10 +360,14 @@ func (a *Auth) SignOut(ctx context.Context, userToken string) error {
 
 	injectAuthorizationHeader(req, userToken)
 	req.Header.Set("Content-Type", "application/json")
-	if err = a.client.sendRequest(req, nil); err != nil {
-		return err
+	res, err := a.client.sendRequest(req)
+	if res.StatusCode != http.StatusOK {
+		errRes := ErrorResponse{}
+		if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+			return err
+		}
+		return errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
 	}
-
 	return nil
 }
 
@@ -328,12 +391,25 @@ func (a *Auth) InviteUserByEmailWithData(ctx context.Context, email string, data
 
 	injectAuthorizationHeader(req, a.client.apiKey)
 	req.Header.Set("Content-Type", "application/json")
-	res := User{}
-	if err := a.client.sendRequest(req, &res); err != nil {
-		return nil, err
+
+	res, err := a.client.sendRequest(req)
+
+	user := User{}
+	if res.Body != nil {
+		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK {
+			errRes := ErrorResponse{}
+			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+				return nil, err
+			}
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+		}
+
+		ParseBody(res, &user)
 	}
 
-	return &res, nil
+	return &user, nil
 }
 
 // InviteUserByEmail sends an invite link to the given email. Returns a user.

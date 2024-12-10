@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -113,12 +114,25 @@ func (a *Admin) GetUser(ctx context.Context, userID string) (*AdminUser, error) 
 	}
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", a.serviceKey))
-	res := AdminUser{}
-	if err := a.client.sendRequest(req, &res); err != nil {
-		return nil, err
+
+	res, err := a.client.sendRequest(req)
+
+	adminUser := AdminUser{}
+	if res.Body != nil {
+		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK {
+			errRes := ErrorResponse{}
+			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+				return nil, err
+			}
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+		}
+
+		ParseBody(res, &adminUser)
 	}
 
-	return &res, nil
+	return &adminUser, nil
 }
 
 // Create a user
@@ -131,12 +145,24 @@ func (a *Admin) CreateUser(ctx context.Context, params AdminUserParams) (*AdminU
 	}
 
 	injectAuthorizationHeader(req, a.serviceKey)
-	res := AdminUser{}
-	if err := a.client.sendRequest(req, &res); err != nil {
-		return nil, err
+	res, err := a.client.sendRequest(req)
+
+	adminUser := AdminUser{}
+	if res.Body != nil {
+		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK {
+			errRes := ErrorResponse{}
+			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+				return nil, err
+			}
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+		}
+
+		ParseBody(res, &adminUser)
 	}
 
-	return &res, nil
+	return &adminUser, nil
 }
 
 // Update a user
@@ -149,12 +175,24 @@ func (a *Admin) UpdateUser(ctx context.Context, userID string, params AdminUserP
 	}
 
 	injectAuthorizationHeader(req, a.serviceKey)
-	res := AdminUser{}
-	if err := a.client.sendRequest(req, &res); err != nil {
-		return nil, err
+	res, err := a.client.sendRequest(req)
+
+	adminUser := AdminUser{}
+	if res.Body != nil {
+		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK {
+			errRes := ErrorResponse{}
+			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+				return nil, err
+			}
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+		}
+
+		ParseBody(res, &adminUser)
 	}
 
-	return &res, nil
+	return &adminUser, nil
 }
 
 // Update a user
@@ -167,10 +205,22 @@ func (a *Admin) GenerateLink(ctx context.Context, params GenerateLinkParams) (*G
 	}
 
 	injectAuthorizationHeader(req, a.serviceKey)
-	res := GenerateLinkResponse{}
-	if err := a.client.sendRequest(req, &res); err != nil {
-		return nil, err
+	res, err := a.client.sendRequest(req)
+
+	generateLinkResponse := GenerateLinkResponse{}
+	if res.Body != nil {
+		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK {
+			errRes := ErrorResponse{}
+			if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+				return nil, err
+			}
+			return nil, errors.New(fmt.Sprintf("%s: %s", errRes.Error, errRes.Message))
+		}
+
+		ParseBody(res, &generateLinkResponse)
 	}
 
-	return &res, nil
+	return &generateLinkResponse, nil
 }
