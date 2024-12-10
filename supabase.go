@@ -30,7 +30,12 @@ type ErrorResponse struct {
 }
 
 func (err *ErrorResponse) Error() string {
-	return err.Message
+	jsonBytes, jsonErr := json.Marshal(err)
+	if jsonErr != nil {
+		return fmt.Sprintf("ErrorResponse{Code: %d, Message: %s, ErrorCode: %s}",
+			err.Code, err.Message, err.ErrorCode)
+	}
+	return string(jsonBytes)
 }
 
 func ParseBody[T any](res *http.Response, target *T) error {
