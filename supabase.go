@@ -46,6 +46,14 @@ func GenericError(err error) *ErrorResponse {
 	}
 }
 
+func NewErrorResponse(code int, message string, errorCode string) *ErrorResponse {
+	return &ErrorResponse{
+		Code:      code,
+		Message:   message,
+		ErrorCode: errorCode,
+	}
+}
+
 func ParseBody[T any](res *http.Response, target *T) error {
 	err := json.NewDecoder(res.Body).Decode(target)
 	if err != nil {
